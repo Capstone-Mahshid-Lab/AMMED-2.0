@@ -284,6 +284,8 @@ double frequency;
 
 void setup()
 {
+  delay(5000);
+
   battCharge = 100.0;
   LED_perMilDutyCycle = 1000; // initialize battery to full charge (don't let device shut down if initialized to uncharged state)
   
@@ -725,6 +727,9 @@ void setup()
   long startyMcStartyPants = millis();
   LEDcycleTime = startyMcStartyPants + LED_modulationPeriod;
   LEDoffTime = startyMcStartyPants + LED_perMilDutyCycle;  // set times for LED modulation...
+
+  Serial.println("Startup Complete.");
+  
 }
 
 void loop() {
@@ -736,6 +741,7 @@ void loop() {
       double computedValue0, computedValue1;
       switch(command) { // in this example, data is only communicated from Android device connected through bluetooth; ESP8266 WiFi only receives data passively to share to internet
         case 'a': // code that an analytical method is selected- first decode what analysis...
+          Serial.println("a read");
           startAnalyticalMethod();
           break;
         case 'q':
@@ -822,10 +828,13 @@ void setElectrodeConfig() {
     if (bcmd == '2') {
       if (electrodeConfig != TWO_ELECTRODE_CONFIG) changedConfig = true;
       electrodeConfig = TWO_ELECTRODE_CONFIG;
+      Serial.print("ur dad");
     }
     else if (bcmd == '3') {
       if (electrodeConfig != THREE_ELECTRODE_CONFIG) changedConfig = true;
       electrodeConfig = THREE_ELECTRODE_CONFIG;
+
+      Serial.print("ur mom");
     }
     else {
       if (electrodeConfig != OPEN_CIRCUIT_CONFIG) changedConfig = true;
