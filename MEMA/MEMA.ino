@@ -284,6 +284,11 @@ double frequency;
 
 void setup()
 {
+  delay(5000);
+  Serial.begin(BAUD);
+  delay(1000);
+  Serial.println("point 1");
+
   battCharge = 100.0;
   LED_perMilDutyCycle = 1000; // initialize battery to full charge (don't let device shut down if initialized to uncharged state)
   
@@ -658,7 +663,7 @@ void setup()
   //Wire.setClock(50000L);
   // operate Wire / i2c port at slower speed- when AD5933 is off capacitance of inputs slows down data line transitions :-(
 
-  Serial.begin(BAUD);
+  // Serial.begin(BAUD);
   
   Configure_ADS1220();  // configure default settings on ADS1220 Analog to Digital Converter
 
@@ -682,6 +687,7 @@ void setup()
   delay(500);  // use a software delay function here to enable program to be reset to reprogram mode
       //- now we're changing the code to generate a sin wave as fast as possible, but still only measure the thermocouple voltage periodically (so removing delays from main loop- won't get another opportunity to keep GPIO00 released)
 
+  Serial.println("point 2");
   for (int i = 0; i <= 4; i ++) {
     // Let's turn on the relay...
     digitalWrite(RELAY, LOW);
@@ -725,6 +731,9 @@ void setup()
   long startyMcStartyPants = millis();
   LEDcycleTime = startyMcStartyPants + LED_modulationPeriod;
   LEDoffTime = startyMcStartyPants + LED_perMilDutyCycle;  // set times for LED modulation...
+
+  Serial.println("Startup Complete.");
+  
 }
 
 void loop() {
@@ -736,6 +745,7 @@ void loop() {
       double computedValue0, computedValue1;
       switch(command) { // in this example, data is only communicated from Android device connected through bluetooth; ESP8266 WiFi only receives data passively to share to internet
         case 'a': // code that an analytical method is selected- first decode what analysis...
+          Serial.println("a read");
           startAnalyticalMethod();
           break;
         case 'q':
@@ -822,10 +832,13 @@ void setElectrodeConfig() {
     if (bcmd == '2') {
       if (electrodeConfig != TWO_ELECTRODE_CONFIG) changedConfig = true;
       electrodeConfig = TWO_ELECTRODE_CONFIG;
+      Serial.print("ur dad");
     }
     else if (bcmd == '3') {
       if (electrodeConfig != THREE_ELECTRODE_CONFIG) changedConfig = true;
       electrodeConfig = THREE_ELECTRODE_CONFIG;
+
+      Serial.print("ur mom");
     }
     else {
       if (electrodeConfig != OPEN_CIRCUIT_CONFIG) changedConfig = true;
@@ -846,6 +859,7 @@ void setElectrodeConfig() {
       AD5933_Connect(true); // connect cell input to network analyzer
       TIA_AD5933(); // connect cell output to network analyzer...
       setTIAGain(0x02); // use 2nd most sensitive gain- 1000000 ohm resistor results in poor amplifier performance on network analyzer
+      ADC_Select(false); // Use old ADC for testing
       /*
        * end of block required for consistent setting of electrode configuration (!?!?!?)
        */

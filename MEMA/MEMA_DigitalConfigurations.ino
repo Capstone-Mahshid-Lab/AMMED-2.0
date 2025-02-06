@@ -243,6 +243,17 @@ void SPI_Chip_Select(int device) {
  }
 
 /*
+ * Set Pins 12, 19 and 20 to select which ADC to test
+ * False(Pins 12, 19-20 = 0) --> Switch 1 on --> Old ADC
+ * True (Pins 12, 19-20 = 1) --> Switch 2 on --> New ADC
+ */
+ void ADC_Select(boolean decider) {
+    if (decider) ShiftRegisterValue |= 0x0C0800; 
+    else ShiftRegisterValue &= 0xF3F7FF;
+    sh_reg(ShiftRegisterValue);
+ }
+
+/*
  * Connect (sum) DAC(AD5061) / LPF output to Potentiostat network (in revised design this is done through one of the ADG715 switches set though i2c)
  */
  void DAC_AD5061_Connect(boolean decider) {
@@ -374,7 +385,7 @@ void sh_reg(unsigned int val) {
   
   digitalWrite(CS_RCK, LOW);  // prime register clock (active on positive edge)
   digitalWrite(CLOCK, LOW);  // prime the data/ serial clock (active on positive edge)
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < 24; i++) {
     chosenbit = (val >> i);  // mask for the current bit in shift register
     //dummy = val & mask;
 

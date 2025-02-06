@@ -10,6 +10,7 @@
  * Note that electrode configuration is not set here- make sure it is set in the main "loop" function before getting sent here!
  */
  void startAnalyticalMethod() {
+    Serial.println("starting analytical methods");
     redLED(true);
     illuminateLED();
     boolean ex = false;
@@ -126,10 +127,14 @@ void CyclicVoltammetry() {
       AD5933_Connect(false);
       setTIAGain(0x03); // initially start at most sensitive gain (will dial down if offscale later)
       int incrementTime = 1000; // time in microseconds at which potential is updated (note that voltage is incremented more often than measurements are made)...
+      int countercv = 0;
       double measureCVIncrement = 0.005;  // applied potential increments (in V) at which data is recorded...
       double startE = Serial.parseFloat();  // start potential (in V)
       double endE = Serial.parseFloat();  // end potential (in V)
       double scanRate = Serial.parseFloat();  // scan rate in V / s (so at 5000 microsecond increment time, voltage increments are ~ 1 mV at highest scan rate of 0.2 V/s)
+      
+      Serial.println("StartE: " + String(startE, 4) + " endE: " + String(endE, 4) + " ScanRate: " + String(scanRate, 4));
+      
       double voltageIncrement = scanRate * incrementTime / 1000000.0; // voltage change to DAC every incrementTime
       double currentVoltage = startE; // keep track of ongoing voltage setting...
       DAC_AD5061_SetCalibratedVoltage(currentVoltage);  // first set the potential at the starting value...
@@ -158,9 +163,10 @@ void CyclicVoltammetry() {
       relayCounter++; // increment relayCounter back to even (relay off)
       digitalWrite(RELAY, HIGH);
 
-      //Serial.print("first voltammetry values reported");
+      Serial.println("first voltammetry values reported");
       while (!endOfAnalysis) {
           while (!endOfAnalysis && !endOfCycle) {
+            countercv = countercv+1;
              while (micros() < updateTime) {
                 if (micros() < (updateTime - incrementTime)) {
                   updateTime = micros() + incrementTime;  // check for and handle any overruns in microsecond timer...
@@ -178,12 +184,20 @@ void CyclicVoltammetry() {
              }
              yield(); // yield to ESP8266 to do other required tasks if necessary (don't let controller timeout)...
              updateTime += incrementTime;  // increment the update time for setting potential
+             
              if (oxidationScan) {
                 if (currentVoltage >= measureCVThreshold) {
                     measureCVThreshold += measureCVIncrement;
                     /*Serial.print("vol ");
                     Serial.print(currentVoltage, 5);
+                    Serial.print('\t');
+                    Serial.print(countercv, 0);
+                    Serial.print('\t');
+                    Serial.print(updateTime, 0);
                     Serial.print('\t');*/
+                    Serial.print("Vol: ");
+                    Serial.print(currentVoltage, 5);
+                    Serial.print('\t');
                     ReportVoltammetryValues(0.0);  // increment threshold for next data report, and then send data report for cell potential and current; not differential measurement so 0 preStepCurrent
                     relayCounter++; // increment relayCounter
                     // if new relayCounter is even, turn relay off (WE 1)
@@ -211,6 +225,10 @@ void CyclicVoltammetry() {
              else {   // we are in reduction scan going from endE to startE...
                 if (currentVoltage <= measureCVThreshold) {
                     measureCVThreshold -= measureCVIncrement;
+                    Serial.print("Vol: ");
+                    Serial.print(currentVoltage, 5);
+                    //Serial.print(updateTime, 0);
+                    Serial.print('\t');
                     ReportVoltammetryValues(0.0);
                     relayCounter++;
                     if ((relayCounter % 2) == 0) {
@@ -222,7 +240,7 @@ void CyclicVoltammetry() {
                 }
                 currentVoltage -= voltageIncrement;  // begin decrementing voltage for reduction scan...
                 if (currentVoltage < startE) { // once we reach the start potential on reduction sweep, cycle has ended...
-                    Serial.print('c');  // send back 'c' for "Cycle Complete" (android will respond with instruction to exit, or to run another cycle...
+                    Serial.print("CV Cycle Complete");  // send back 'c' for "Cycle Complete" (android will respond with instruction to exit, or to run another cycle...
                     endOfCycle = true;
                     currentVoltage = startE;
                     oxidationScan = true; // set it back to oxidation sweep if another cycle is requested...
@@ -337,6 +355,9 @@ void DifferentialPulseVoltammetry() {
                     DAC_AD5061_SetCalibratedVoltage(currentVoltage);  // now we've measured the pre-step current- apply the step and toggle flag so we measure post step next time
                 }
                 else {
+                    Serial.print("Vol: ");
+                    Serial.print(currentVoltage, 5);
+                    Serial.print('\t');
                     ReportVoltammetryValues(preStepCurrent);
                     /*relayCounter++; // increment relayCounter
                     // if new relayCounter is even, turn relay off (WE 1)
@@ -373,6 +394,9 @@ void DifferentialPulseVoltammetry() {
                     DAC_AD5061_SetCalibratedVoltage(currentVoltage);  // now we've measured the pre-step current- apply the step and toggle flag so we measure post step next time
                 }
                 else {
+                    Serial.print("Vol: ");
+                    Serial.print(currentVoltage, 5);
+                    Serial.print('\t');
                     ReportVoltammetryValues(preStepCurrent);
                     /*relayCounter++;
                     if ((relayCounter % 2) == 0) {
@@ -639,7 +663,7 @@ void ElectrochemicalImpedanceSpectroscopy() {
       // hard coded- equation wasn't working and we know application of bias will potentially severely curtain margin before saturation occurs....
       
       //fCLK_Factor = 1.0;
-
+      
       //Start with WE 1 (relay off)
       /*relayCounter = 0; // even relayCounter = relay off
       digitalWrite(RELAY, HIGH);*/
@@ -750,7 +774,7 @@ void ElectrochemicalImpedanceSpectroscopy() {
       double lowFreqLimit = highfreq_increment * 2.0;
       MCLKext = true; // enable external clock setting (using 250kHz external clock for these range of frequency values)
       double lastF = 1.0; // last frequency evaluated (so we don't repeat analysis for frequencies where we're constrained to evaluate the nearest system harmonics of our desired frequencies
-      while (!endOfAnalysis && (analysisFrequency < lowFreqLimit) && (analysisFrequency <= endFrequency)) {
+      while (!endOfAnalysis && (5) && (analysisFrequency <= endFrequency)) {
           delay(1);
           if (analysisFrequency < (10.0 * lowfreq_increment)) { // if selected frequency does not allow for multiple (>=10) signal cycles per sample set, round to nearest frequency for integer cycles for accuracy
               int matchedFrequencyHarmonic = round(analysisFrequency / lowfreq_increment);
@@ -864,7 +888,7 @@ void ElectrochemicalImpedanceSpectroscopy() {
       Serial.print("fCLK factor ");
       Serial.print(fCLK_Factor);
       Serial.print('\t');*/
-      Serial.print('c');  // send back 'c' for "Cycle Complete" so Android knows we're done!
+      Serial.println('c');  // send back 'c' for "Cycle Complete" so Android knows we're done!
 }
 
 /*
@@ -1239,9 +1263,11 @@ void ReportVoltammetryValues(double preStepI) {
       Serial.print('p');  // code that data from WE 2 is coming- send cell potential first, then current using tab delimitation
     }
     //Serial.print('d');
+    Serial.print("mE(V):");
     Serial.print(cellPotential, 4);
     Serial.print('\t');
-    Serial.print(currentValue, 0);
+    Serial.print("I(nA):");
+    Serial.print(currentValue, 3);
     Serial.print('\t');
     /*Serial.print("mE(V):");
     Serial.print(cellPotential, 4);

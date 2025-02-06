@@ -193,11 +193,11 @@ void DAC_AD5061_SetVoltage(double voltage) {
   SPI_Chip_Select(AD5061_DAC);
   digitalWrite(CS_RCK, LOW);
   SPI.beginTransaction(AD5061Settings);
-  byte SPI_Junk_Received = SPI.transfer(0x00); // first byte is control- last two bits can be used to set into power down mode; here we leave in normal mode
+  byte SPI_Junk_Received = SPI.transfer(0x00); // first byte is control-last two bits can be used to set into power down mode; here we leave in normal mode
   SPI_Junk_Received = SPI.transfer(Byte01);
   SPI_Junk_Received = SPI.transfer(Byte00);
   SPI.endTransaction();
-  digitalWrite(CS_RCK, HIGH); // CS/ SYNC must go back high before another instruction can be sent...
+  digitalWrite(CS_RCK, HIGH); // CS/SYNC must go back high before another instruction can be sent...
   Release_Chip_Select();
 }
 
