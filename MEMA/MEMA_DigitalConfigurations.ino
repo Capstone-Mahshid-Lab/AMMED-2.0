@@ -250,18 +250,18 @@ void SPI_Chip_Select(int device) {
  }
 
 /*
- * Set Pins 12, 19 and 20 to select which ADC to test
- * False(Pins 12, 19-20 = 0) --> Switch 1 on --> Old ADC
- * True (Pins 12, 19-20 = 1) --> Switch 2 on --> New ADC
+ * Set Pins 12, 19, 20 & 22 to select which ADC to test
+ * False(Pins 12, 19-20, 22 = 0) --> Switch 1 on --> Old ADC
+ * True (Pins 12, 19-20, 22 = 1) --> Switch 2 on --> New ADC
  */
  void ADC_Select(boolean decider) {
     if (decider) {
-      ShiftRegisterValue |= 0x181000;  //True - use new ADC - 0xC0800 old values - 0x181000 new values
+      ShiftRegisterValue |= 0x581000;  //True - use new ADC - 0x581000 new values
       Serial.println("Shift register control set to new ADC");
 
       // Debug code - Buffer to store formatted string
       //char buffer[25]; // Adjust size as needed
-      //unsigned int Extract_value = ShiftRegisterValue & 0x181000; //confirm values were set high - true
+      //unsigned int Extract_value = ShiftRegisterValue & 0x581000; //confirm values were set high - true
       // Print hex value as string
       //snprintf(buffer, sizeof(buffer), "%X", Extract_value);
   
@@ -269,12 +269,12 @@ void SPI_Chip_Select(int device) {
     }
 
     else {  
-      ShiftRegisterValue &= 0xE7EFFF; //False - use old ADC F3F7FF old values - 0xE7EFFF new values
+      ShiftRegisterValue &= 0xA7EFFF; //False - 0x0xA7EFFF new values
       Serial.println("Shift register set to old ADC");
 
       //Debug code - Buffer to store formatted string
       //char buffer[25]; // Adjust size as needed
-      //unsigned int Extract_value = ShiftRegisterValue | 0xE7EFFF;
+      //unsigned int Extract_value = ShiftRegisterValue | 0xA7EFFF;
       // Print hex value as string
       //snprintf(buffer, sizeof(buffer), "%X", ShiftRegisterValue);
   
