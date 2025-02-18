@@ -109,8 +109,8 @@ void i2c_Write(int i2cAddr, int regAddr, byte reg_value)
  * bring O11 low to remove battery power from device (note that USB power always powers device when connected)
  */
  void devicePower(boolean affirmative) {
-    if (affirmative) ShiftRegisterValue |= 0x0800; // set bit O11 in shift register as high to hold power on...
-    else ShiftRegisterValue &= 0xf7ff;  // set bit O11 in shift register as low to power down...
+    if (affirmative) ShiftRegisterValue |= 0x000800; // set bit O11 in shift register as high to hold power on...
+    else ShiftRegisterValue &= 0xfff7ff;  // set bit O11 in shift register as low to power down...
     sh_reg(ShiftRegisterValue);
  }
 
@@ -126,8 +126,8 @@ void i2c_Write(int i2cAddr, int regAddr, byte reg_value)
  */
  boolean BT_Connected() {
     pinMode(0, INPUT);
-    if (((ShiftRegisterValue & 0x000c) >> 2) != 0x0000) { // make sure BT_Connected signal is connected to GPIO00 through switch- if not connect it...
-      ShiftRegisterValue &= 0xfff3; // mask off bits 2 & 3 from shift register value
+    if (((ShiftRegisterValue & 0x00000c) >> 2) != 0x000000) { // make sure BT_Connected signal is connected to GPIO00 through switch- if not connect it...
+      ShiftRegisterValue &= 0xfffff3; // mask off bits 2 & 3 from shift register value
       sh_reg(ShiftRegisterValue);
     }
     return digitalRead(0); // now return the inverse of the state read on GPIO00 (data ready on logic low) 
@@ -140,43 +140,47 @@ void i2c_Write(int i2cAddr, int regAddr, byte reg_value)
 void SPI_Chip_Select(int device) {
     if (device > 1) device = 1;  // only have 2 devices- 0 (ADS1220) or 1 (AD5061) connected to SPI...
     if (device < 0) device = 0;
-    int address = (device & 0x0001);  // add address, and make sure that !enable bit (O01) for switch is off (otherwise no device will connect)
-    ShiftRegisterValue &= 0xfffc;  // mask off outputs O00 - O01 on shift register value
+    int address = (device & 0x000001);  // add address, and make sure that !enable bit (O01) for switch is off (otherwise no device will connect)
+    ShiftRegisterValue &= 0xfffffc;  // mask off outputs O00 - O01 on shift register value
     ShiftRegisterValue |= address;  // and write the new values into them...
     sh_reg (ShiftRegisterValue);
 }
 
 /*
  * set !enable high on !CS select switch (for using CS pin / GPIO15  signal for SDA and i2c communication, instead of for SPI)
+ *(Updated 24-bit)
  */
  void Release_Chip_Select() {
-  ShiftRegisterValue |= 0x0002; // force O01 high, leave all others unchanged
+  ShiftRegisterValue |= 0x000002; // force O01 high, leave all others unchanged
   sh_reg(ShiftRegisterValue);
  }
 
 /*
  * set !enable high on switch routing BT_Connected and !DRDY signals to GPIO00 (Generally the latter signals will be high, so will prevent MCU going into programming mode on reset)
+ *(Updated 24-bit)
  */
  void Release_GPIO00() {
-   ShiftRegisterValue |= 0x0008; // force O03 high- switch to GPIO00 disabled, leave all others unchanged
+   ShiftRegisterValue |= 0x000008; // force O03 high- switch to GPIO00 disabled, leave all others unchanged
    sh_reg(ShiftRegisterValue);
  }
 
 /*
  * Connect working electrode through Trans-Impedance Amplifier / LMP7721 network to ADS1220 Analog to Digital Converter
  * sends switch signal of "0" to both ADG779 (Shift register outputs O04 and O05)
+ *(Updated 24-bit)
  */
  void TIA_LMP7721() {
-    ShiftRegisterValue &= 0xffcf; // force O04 and O05 low (connect working electrode to LMP7721 TIA network)
+    ShiftRegisterValue &= 0xffffcf; // force O04 and O05 low (connect working electrode to LMP7721 TIA network)
     sh_reg(ShiftRegisterValue);
  }
 
 /*
  * Connect working electrode through Trans-Impedance Amplifier on AD5933 network analyzer
  * sends switch signal of "1" to both ADG779 (Shift register outputs O04 and O05)
+ *(Updated 24-bit)
  */
  void TIA_AD5933() {
-    ShiftRegisterValue |= 0x0030; // force O04 and O05 high (connect working electrode to AD5933 TIA network)
+    ShiftRegisterValue |= 0x000030; // force O04 and O05 high (connect working electrode to AD5933 TIA network)
     sh_reg(ShiftRegisterValue);
  }
 
@@ -192,8 +196,8 @@ void SPI_Chip_Select(int device) {
               // after swap, b00 => b03(1kOhm); b01 => b01(10k); b10 => b10(1M); b11 => b00(100M) (bit swapping is vestigial from early prototypes of NC-1194_Potentiostat
               // which in which resistor layout was out of order by magnitude
     unsigned int shifty = gain_code << 8; // move code to corresponding shift register outputs for A0 and A1 (O08 and O09)
-    shifty |= 0x0400; // also turn on bit O10 for shift register (enable pin for ADG704)
-    ShiftRegisterValue &= 0xf8ff; // mask off bits O08, O09, and O10 
+    shifty |= 0x000400; // also turn on bit O10 for shift register (enable pin for ADG704)
+    ShiftRegisterValue &= 0xfff8ff; // mask off bits O08, O09, and O10 
     ShiftRegisterValue |= shifty; // and fill in with gain code and enable bit for ADG704
     sh_reg(ShiftRegisterValue);
     TIAGainCode = gain_code;
@@ -217,28 +221,31 @@ void SPI_Chip_Select(int device) {
 
 /*
  * Turn on signal for red light of 3-color LED (also need to invoke illuminateLED() to conduct through PMOS to supply)
+ *(Updated 24-bit)
  */
  void redLED(boolean red) {
-    if (red) ShiftRegisterValue |= 0x0040; // force O06 high (drive red LED NMOS)
-    else ShiftRegisterValue &= 0xffbf; // force O06 low (don't drive red LED NMOS)
+    if (red) ShiftRegisterValue |= 0x000040; // force O06 high (drive red LED NMOS)
+    else ShiftRegisterValue &= 0xffffbf; // force O06 low (don't drive red LED NMOS)
     sh_reg(ShiftRegisterValue);
  }
 
 /*
  * illuminate tri-color LED (green if circuit powered, blue when connected to bluetooth, unless redLED selected above);
  * logic low- PMOS switch to supply tri-color LED...
+ *(Updated 24-bit)
  */
  void illuminateLED() {
-    ShiftRegisterValue &= 0xff7f; // force O07 low (PMOS channel closed- conduct Vdd to LEDs)
+    ShiftRegisterValue &= 0xffff7f; // force O07 low (PMOS channel closed- conduct Vdd to LEDs)
     sh_reg(ShiftRegisterValue);
  }
 
 /*
  * remove power to tri-color LED (green if circuit powered, blue when connected to bluetooth, unless redLED selected above);
  * logic low- PMOS switch to supply tri-color LED...
+ *(Updated 24-bit)
  */
  void noLED() {
-    ShiftRegisterValue |= 0x0080; // force O08 high (PMOS channel open / remove Vdd from LEDs)
+    ShiftRegisterValue |= 0x000080; // force O07 high (PMOS channel open / remove Vdd from LEDs)
     sh_reg(ShiftRegisterValue);
  }
 
@@ -248,8 +255,32 @@ void SPI_Chip_Select(int device) {
  * True (Pins 12, 19-20 = 1) --> Switch 2 on --> New ADC
  */
  void ADC_Select(boolean decider) {
-    if (decider) ShiftRegisterValue |= 0x0C0800; 
-    else ShiftRegisterValue &= 0xF3F7FF;
+    if (decider) {
+      ShiftRegisterValue |= 0x181000;  //True - use new ADC - 0xC0800 old values - 0x181000 new values
+      Serial.println("Shift register control set to new ADC");
+
+      // Debug code - Buffer to store formatted string
+      //char buffer[25]; // Adjust size as needed
+      //unsigned int Extract_value = ShiftRegisterValue & 0x181000; //confirm values were set high - true
+      // Print hex value as string
+      //snprintf(buffer, sizeof(buffer), "%X", Extract_value);
+  
+      //Serial.println(buffer); // Output the hex value as a string
+    }
+
+    else {  
+      ShiftRegisterValue &= 0xE7EFFF; //False - use old ADC F3F7FF old values - 0xE7EFFF new values
+      Serial.println("Shift register set to old ADC");
+
+      //Debug code - Buffer to store formatted string
+      //char buffer[25]; // Adjust size as needed
+      //unsigned int Extract_value = ShiftRegisterValue | 0xE7EFFF;
+      // Print hex value as string
+      //snprintf(buffer, sizeof(buffer), "%X", ShiftRegisterValue);
+  
+      //Serial.println(buffer); // Output the hex value as a string
+    }
+
     sh_reg(ShiftRegisterValue);
  }
 
@@ -273,10 +304,11 @@ void SPI_Chip_Select(int device) {
 
 /*
  * Conduct through PMOS to power AD5933 and it's external clock (if true), otherwise close channel / remove power
+ *(Updated 24-bit)
  */
  void AD5933_PowerOn(boolean powerStatus) {
-    if (powerStatus) ShiftRegisterValue &= 0xefff;  // set bit 12 to 0 (pull inversion layer in PMOS to power network analyzer DVDD)
-    else ShiftRegisterValue |= 0x1000;  // set bit 12 to 1 (cut off inversion- no power to network)
+    if (powerStatus) ShiftRegisterValue &= 0xffefff;  // set bit 12 to 0 (pull inversion layer in PMOS to power network analyzer DVDD)
+    else ShiftRegisterValue |= 0x001000;  // set bit 12 to 1 (cut off inversion- no power to network)
     sh_reg(ShiftRegisterValue);
  }
 
@@ -292,10 +324,11 @@ void SPI_Chip_Select(int device) {
 
  /*
  * Conduct through PMOS to power external 250kHz clock for AD5933
+ *(Updated 24-bit)
  */
  void MCLK_Enable(boolean powerStatus) {
-    if (powerStatus) ShiftRegisterValue &= 0xdfff;  // set bit 13 to 0 (pull inversion layer in PMOS to power clock)
-    else ShiftRegisterValue |= 0x2000;  // set bit 12 to 1 (cut off inversion- no power to network)
+    if (powerStatus) ShiftRegisterValue &= 0xffdfff;  // set bit 13 to 0 (pull inversion layer in PMOS to power clock)
+    else ShiftRegisterValue |= 0x002000;  // set bit 12 to 1 (cut off inversion- no power to network)
     sh_reg(ShiftRegisterValue);
  }
 
@@ -354,9 +387,9 @@ void SPI_Chip_Select(int device) {
  */
 boolean ADS1220DataReady() {
   pinMode(0, INPUT);
-  if (((ShiftRegisterValue & 0x000c) >> 2) != 0x0001) { // make sure !DRDY is connected to GPIO00 through switch- if not connect it...
-    ShiftRegisterValue &= 0xfff3; // mask off bits 2 & 3 from shift register value
-    ShiftRegisterValue |= 0x0004; // force bit 2 high (3 is already low)- connects !DRDY to GPIO00
+  if (((ShiftRegisterValue & 0x00000c) >> 2) != 0x000001) { // make sure !DRDY is connected to GPIO00 through switch- if not connect it...
+    ShiftRegisterValue &= 0xfffff3; // mask off bits 2 & 3 from shift register value
+    ShiftRegisterValue |= 0x000004; // force bit 2 high (3 is already low)- connects !DRDY to GPIO00
     sh_reg(ShiftRegisterValue);
   }
   return !digitalRead(0); // now return the inverse of the state read on GPIO00 (data ready on logic low) 
@@ -389,6 +422,13 @@ void sh_reg(unsigned int val) {
     chosenbit = (val >> i);  // mask for the current bit in shift register
     //dummy = val & mask;
 
+    if (debug_flag >= 1) { //debug mode 1 code
+      unsigned int test_value = chosenbit & 0x0001;
+      if (i<23) {
+        Serial.print(test_value); //added to test see current value
+      }
+      else Serial.println(test_value); //added to test see current value
+    }
     if (chosenbit & 0x0001) digitalWrite(SER, HIGH);
 
     else digitalWrite(SER, LOW);  // write appropriate value to input
@@ -396,7 +436,10 @@ void sh_reg(unsigned int val) {
     digitalWrite(CLOCK, HIGH);
     digitalWrite(CLOCK, LOW);  // and clock it into the register
   }
-  
+
+  if (debug_flag >= 1) { //debug 1 mode code
+    delay(10); //added delay to have time to display values
+  }
   digitalWrite(CS_RCK, HIGH);
   digitalWrite(CS_RCK, LOW);  // clock the register into the output
   ShiftRegisterValue = val;

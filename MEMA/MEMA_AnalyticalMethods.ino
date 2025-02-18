@@ -1268,7 +1268,7 @@ void ReportVoltammetryValues(double preStepI) {
     Serial.print('\t');
     Serial.print("I(nA):");
     Serial.print(currentValue, 3);
-    Serial.print('\t');
+    Serial.println('\t');
     /*Serial.print("mE(V):");
     Serial.print(cellPotential, 4);
     Serial.print("I(nA):");

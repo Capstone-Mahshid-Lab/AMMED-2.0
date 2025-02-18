@@ -241,10 +241,12 @@ int LED_perMilDutyCycle;
 long LEDcycleTime;  // start of (on) period for modulating LED
 long LEDoffTime;    // start of "off" portion of LED modulation...
 
-const long timeoutInterval = 60000; // period in ms (1 minute) before device shuts itself off if idle (no communication received from Android
+const long timeoutInterval = 60000; // period in ms (1 minute) before device shuts itself off if idle (no communication received from Android)
 long shutoffTime;
 
-unsigned int ShiftRegisterValue = 0x3000; // starting ABE-Stat_1_0_11, leave bits 12 and 13 high (default no power to AD5933 or its external clock)
+unsigned int debug_flag = 0; //debugging flag that allows to see different levels of print statements
+
+unsigned int ShiftRegisterValue = 0x003000; // starting ABE-Stat_1_0_11, leave bits 12 and 13 high (default no power to AD5933 or its external clock)
 //unsigned int ShiftRegisterValue = 0x0000; // first prototype i2c stopped working- SDA getting clipped- short circuit on AD5933 when latter is not powered?
 byte ADG715SwitchStates = 0x00;
 
@@ -802,15 +804,24 @@ void loop() {
           Serial.print(computedValue1, 1);
           Serial.print('\t');
           break;
+        case 'c': //NEW COMMAND - used to control some circuit configuration - choose the main ADC or choose the main EIS clock source
+          Serial.println("configuration command - ADC or EIS clock");
+          circuitConfig_ADC_EIS_CLK();
+          break;
+        case 't':  //NEW COMMAND - used to enable or disable test print statements with the tester flag
+          Serial.println("debug mode command");
+          debug_mode_state();
+          break;
         default:
           break;
       }
       devicePower(true);  // any time we receive communication restore battery power (will prevent shutoff if remove USB cable), and reset timeout clock
       shutoffTime = millis() + timeoutInterval;
     }
+    
     if (millis() < (shutoffTime - timeoutInterval)) shutoffTime = millis() + timeoutInterval; // timer overrun- reset shutoffTime...
     if (millis() > shutoffTime) {
-        devicePower(false); // remove battery power from device if timed out...
+        devicePower(true); // remove battery power from device if timed out... TO REENABLE LATER
     }
     if (battCharge < 1.0) blinkOff();
     if (millis() > LEDcycleTime) {
@@ -823,6 +834,7 @@ void loop() {
         if (LED_perMilDutyCycle < 1000) noLED();  // turn off LED for rest of cycle (if not 100% duty cycle), and tentatively set next value to turn off...
         LEDoffTime += LEDcycleTime;
     }
+    
 }
 
 void setElectrodeConfig() {
@@ -832,13 +844,13 @@ void setElectrodeConfig() {
     if (bcmd == '2') {
       if (electrodeConfig != TWO_ELECTRODE_CONFIG) changedConfig = true;
       electrodeConfig = TWO_ELECTRODE_CONFIG;
-      Serial.print("ur dad");
+      Serial.println("2 electrode config selected");
     }
     else if (bcmd == '3') {
       if (electrodeConfig != THREE_ELECTRODE_CONFIG) changedConfig = true;
       electrodeConfig = THREE_ELECTRODE_CONFIG;
 
-      Serial.print("ur mom");
+      Serial.println("3 electrode config selected");
     }
     else {
       if (electrodeConfig != OPEN_CIRCUIT_CONFIG) changedConfig = true;
@@ -859,12 +871,87 @@ void setElectrodeConfig() {
       AD5933_Connect(true); // connect cell input to network analyzer
       TIA_AD5933(); // connect cell output to network analyzer...
       setTIAGain(0x02); // use 2nd most sensitive gain- 1000000 ohm resistor results in poor amplifier performance on network analyzer
-      ADC_Select(false); // Use old ADC for testing
       /*
        * end of block required for consistent setting of electrode configuration (!?!?!?)
        */
 
       resetElectrodeConfig();
+    }
+}
+
+//NEW FUNCTION TO MANAGE EXACT CIRCUIT TO CHANGE
+/*
+ * Commands to set ADC to use for commands or EIS clock input to choose while testing
+ * Example: command "ca1" --> choose Old ADC
+ * Example: command "cc1" --> choose crystal clock
+ */
+void circuitConfig_ADC_EIS_CLK() {
+  while(!Serial.available()); // wait for character to arrive
+    char bcmd_config = Serial.read();
+    if (bcmd_config == 'a') {
+      Serial.println("ADC control command");
+
+      while(!Serial.available()); // wait for character to arrive
+        char bcmd_adc = Serial.read();
+
+        if (bcmd_adc == '1') { //selecting ADC#1 - AMMED 1.0 ADC - ADS1220
+          ADC_Select(false);
+          Serial.println("ADC1 - ADS1220 SELECTED");
+        }
+
+        else if (bcmd_adc == '2') { //selecting ADC#2 - AMMED 2.0 NEW ADC - ADS1255
+          ADC_Select(true);
+          Serial.println("ADC2 - NEW ADS1255 SELECTED");
+        }
+
+        else {
+          Serial.println("Please select a valid ADC - use '1' or '2' ");
+        }
+    }
+    else if (bcmd_config == 'c') { //running a EIS clock specific command
+      Serial.println("EIS clock control command");
+
+      while(!Serial.available()); // wait for character to arrive
+        char bcmd_clk = Serial.read();
+
+        if (bcmd_clk == '1') { //selecting EIS clock input #1 - Crystal
+          Serial.println("EIS clock input #1 - Crystal SELECTED");
+        }
+
+        else if (bcmd_clk == '2') { //selecting EIS clock input #2 - 555 timer circuit
+          Serial.println("EIS clock input #2 - 555 timer circuit SELECTED");
+        }
+
+        else if (bcmd_clk == '3') { //selecting EIS clock input #3 - clock divider
+          Serial.println("EIS clock input #3 - clock divider SELECTED");
+        }
+
+        else {
+          Serial.println("Please select a valid EIS clock input - use '1', '2' or '3' ");
+        }
+    }
+    else {
+      Serial.println("Please select a valid second character - 'a' or 'c' ");
+    }
+
+}
+
+void debug_mode_state() {
+  while(!Serial.available()); // wait for character to arrive
+    char bcmd_mode = Serial.read();
+
+    if (bcmd_mode == '0') {
+      Serial.println("Setting to default debug mode 0 - no debug print statements");
+      debug_flag = 0;
+    }
+
+    else if (bcmd_mode == '1') {
+      Serial.println("Setting to default debug mode 1 - basic debug print statements");
+      debug_flag = 1;
+    }
+
+    else {
+      Serial.println("Please select a valid debug mode number - '0' or '1' ");
     }
 }
 
@@ -875,5 +962,5 @@ void blinkOff() {
         illuminateLED();
         delay(500);
     }
-    devicePower(false);
+    devicePower(true); //put to true to remove power off of board when using power supply TO REENABLE
 }
